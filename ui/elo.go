@@ -1,7 +1,9 @@
-package main
+package ui
+
 
 import (
     "os"
+	"fmt"
 	"math"
 	"encoding/json"
 )
