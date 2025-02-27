@@ -2,13 +2,13 @@
 package eventprocessor
 
 import (
-	"fmt"
 	"io"
-	"log"
-	"net/http"
 	"os"
-	"strconv"
+	"fmt"
+	"log"
 	"time"
+	"strconv"
+	"net/http"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 

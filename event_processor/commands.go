@@ -29,3 +29,10 @@ func (ev_proc EventProcessor) processCommand(bot *tgbotapi.BotAPI, command strin
 		}
 	}
 }
+
+func HandleGeneralRating(bot *tgbotapi.BotAPI, chatID int64, userID string) {
+    ratingMessage := getPlayerRating(userID)
+
+    msg := tgbotapi.NewMessage(chatID, ratingMessage)
+    bot.Send(msg)
+}
