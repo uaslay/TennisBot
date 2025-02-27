@@ -1,0 +1,29 @@
+version: '3.5'
+
+services:
+  bot:
+    image: otimofie/tennis_bot
+    environment:
+      TOKEN: 7629305256:AAF32KQDQlXMBrir0pw1EXUx3WMaNRkLkD4
+      HOST: db
+      PORT: 5432
+      USER: postgres
+      PASSWORD: test
+      DBNAME: postgres
+      SSLMODE: disable
+    depends_on: 
+      - db
+    restart: always
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: test
+    # volumes:
+    #   - ./data:/var/lib/postgresql/data
+
+
+  
