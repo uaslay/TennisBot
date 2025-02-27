@@ -1,5 +1,6 @@
 // Package eventprocessor : This file contains the functions that handle the profile buttons.
 package eventprocessor
+package ui
 
 import (
 	"io"
