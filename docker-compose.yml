@@ -4,7 +4,7 @@ services:
   bot:
     image: otimofie/tennis_bot
     environment:
-      TOKEN: 7629305256:AAF32KQDQlXMBrir0pw1EXUx3WMaNRkLkD4
+      TOKEN: 8088613497:AAEIgpbucvx0cdxHj5YelwPbrv0mvRM9VhA
       HOST: db
       PORT: 5432
       USER: postgres

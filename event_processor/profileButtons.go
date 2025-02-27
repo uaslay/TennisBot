@@ -236,3 +236,8 @@ func (ev_proc EventProcessor) EnterGameScore(bot *tgbotapi.BotAPI, update tgbota
 	// list of games -> list of dual games for the correspondent user/player id
 	// send request to confirm the game score
 }
+
+// Обробляє кнопку "Загальний рейтинг"
+func handleGeneralRating(userID string) string {
+    return getPlayerRating(userID)
+}

@@ -2,7 +2,7 @@ default: up
 
 build: 
 	@mkdir -p bin
-	@sudo env GOOS=linux GOARCH=arm64 GOFLAGS=-buildvcs=false go build -o ./bin
+	@sudo env GOOS=linux GOARCH=amd64 GOFLAGS=-buildvcs=false go build -o ./bin/TennisBot
 
 clean: down
 	@sudo rm -rf ./bin
