@@ -8,8 +8,10 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	ui "TennisBot/ui"
 	db "TennisBot/database"
 	ev_proc "TennisBot/event_processor"
+
 )
 
 var dbClient db.DBClient
@@ -29,7 +31,7 @@ func main() {
     matchesB := 5
     resultA := 1.0 // Гравець A виграв
 
-    newA, newB := updateElo(ratingA, ratingB, matchesA, matchesB, resultA)
+    newA, newB := ui.UpdateElo(ratingA, ratingB, matchesA, matchesB, resultA)
     fmt.Printf("Новий рейтинг A: %d\n", newA)
     fmt.Printf("Новий рейтинг B: %d\n", newB)
 

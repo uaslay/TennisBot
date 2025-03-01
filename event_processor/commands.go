@@ -1,13 +1,14 @@
 package eventprocessor
-package ui
 
 import (
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	db "TennisBot/database"
 	ui "TennisBot/ui"
 )
 
+// Обробляє команду /menu
 func (ev_proc EventProcessor) processCommand(bot *tgbotapi.BotAPI, command string, update tgbotapi.Update, activeRoutines map[int64](chan string), dbClient *db.DBClient) {
 	playerID := update.Message.From.ID
 	chatID := update.Message.Chat.ID
@@ -31,8 +32,9 @@ func (ev_proc EventProcessor) processCommand(bot *tgbotapi.BotAPI, command strin
 	}
 }
 
-func HandleGeneralRating(bot *tgbotapi.BotAPI, chatID int64, userID string) {
-    ratingMessage := getPlayerRating(userID)
+// Обробляє кнопку "Загальний рейтинг"
+func handleGeneralRating(bot *tgbotapi.BotAPI, chatID int64, userID string) {
+    ratingMessage := ui.GetPlayerRating(userID)
 
     msg := tgbotapi.NewMessage(chatID, ratingMessage)
     bot.Send(msg)

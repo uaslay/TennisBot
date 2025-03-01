@@ -1,6 +1,5 @@
 // Package eventprocessor : This file contains the functions that handle the profile buttons.
 package eventprocessor
-package ui
 
 import (
 	"io"
@@ -238,7 +237,3 @@ func (ev_proc EventProcessor) EnterGameScore(bot *tgbotapi.BotAPI, update tgbota
 	// send request to confirm the game score
 }
 
-// Обробляє кнопку "Загальний рейтинг"
-func handleGeneralRating(userID string) string {
-    return getPlayerRating(userID)
-}

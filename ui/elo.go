@@ -1,6 +1,5 @@
 package ui
 
-
 import (
     "os"
 	"fmt"
@@ -70,7 +69,7 @@ func expectedScore(ratingA, ratingB int) float64 {
 }
 
 // Функція для оновлення рейтингу після матчу
-func updateElo(ratingA, ratingB, matchesA, matchesB int, resultA float64) (int, int) {
+func UpdateElo(ratingA, ratingB, matchesA, matchesB int, resultA float64) (int, int) {
 	E_A := expectedScore(ratingA, ratingB)
 	E_B := expectedScore(ratingB, ratingA)
 
@@ -95,7 +94,7 @@ func updatePlayerRating(playerAID, playerBID string, resultA float64) {
     }
 
     // Оновлюємо рейтинги
-    newRatingA, newRatingB := updateElo(playerA.Rating, playerB.Rating, playerA.Matches, playerB.Matches, resultA)
+    newRatingA, newRatingB := UpdateElo(playerA.Rating, playerB.Rating, playerA.Matches, playerB.Matches, resultA)
 
     playerA.Rating = newRatingA
     playerB.Rating = newRatingB
@@ -109,7 +108,7 @@ func updatePlayerRating(playerAID, playerBID string, resultA float64) {
 }
 
 // Отримує рейтинг гравця за його ID
-func getPlayerRating(playerID string) string {
+func GetPlayerRating(playerID string) string {
     players := loadPlayers()
 
     player, exists := players[playerID]
