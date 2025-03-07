@@ -7,11 +7,17 @@ import (
 	"encoding/json"
 )
 
-// Структура профілю гравця
+const (
+    GeneralRatingButton = "📊 Загальний рейтинг"
+)
+
+// Структура для збереження даних гравця
 type Player struct {
     ID       string `json:"id"`
     Name     string `json:"name"`
     Rating   int    `json:"rating"`
+    Wins     int    `json:"wins"`
+    Losses   int    `json:"losses"`
     Matches  int    `json:"matches"`
 }
 
@@ -86,11 +92,30 @@ func UpdateElo(ratingA, ratingB, matchesA, matchesB int, resultA float64) (int, 
 func updatePlayerRating(playerAID, playerBID string, resultA float64) {
     players := loadPlayers()
 
+    // Якщо гравець A не існує – створюємо його
     playerA, existsA := players[playerAID]
-    playerB, existsB := players[playerBID]
+    if !existsA {
+        playerA = Player{
+            ID:      playerAID,
+            Name:    "Unknown",
+            Rating:  0,
+            Wins:    0,
+            Losses:  0,
+            Matches: 0,
+        }
+    }
 
-    if !existsA || !existsB {
-        return // Гравці не знайдені
+    // Якщо гравець B не існує – створюємо його
+    playerB, existsB := players[playerBID]
+    if !existsB {
+        playerB = Player{
+            ID:      playerBID,
+            Name:    "Unknown",
+            Rating:  0,
+            Wins:    0,
+            Losses:  0,
+            Matches: 0,
+        }
     }
 
     // Оновлюємо рейтинги
@@ -104,17 +129,31 @@ func updatePlayerRating(playerAID, playerBID string, resultA float64) {
     players[playerAID] = playerA
     players[playerBID] = playerB
 
-    savePlayers(players)
+    savePlayers(players) // Зберігаємо оновлену базу
 }
 
-// Отримує рейтинг гравця за його ID
+
+// Отримує рейтинг гравця разом із статистикою виграшів/поразок
 func GetPlayerRating(playerID string) string {
     players := loadPlayers()
 
     player, exists := players[playerID]
     if !exists {
-        return "Гравець не знайдений. Можливо, ви ще не зареєстровані."
+        // Якщо гравця немає – створюємо його з рейтингом 0
+        player = Player{
+            ID:      playerID,
+            Name:    "Unknown",
+            Rating:  0,  // Початковий рейтинг = 0
+            Wins:    0,
+            Losses:  0,
+            Matches: 0,
+        }
+        players[playerID] = player
+        savePlayers(players) // Зберігаємо нового гравця
     }
 
-    return fmt.Sprintf("Гравець: %s\nРейтинг: %d\nМатчів зіграно: %d", player.Name, player.Rating, player.Matches)
+    return fmt.Sprintf("Ваш загальний рейтинг: %d (Виграш %d - %d Програш)", 
+        player.Rating, player.Wins, player.Losses)
 }
+
+

@@ -237,3 +237,10 @@ func (ev_proc EventProcessor) EnterGameScore(bot *tgbotapi.BotAPI, update tgbota
 	// send request to confirm the game score
 }
 
+// Обробляє кнопку "Загальний рейтинг"
+func handleGeneralRating(bot *tgbotapi.BotAPI, chatID int64, userID string) {
+    ratingMessage := ui.GetPlayerRating(userID)
+
+    msg := tgbotapi.NewMessage(chatID, ratingMessage)
+    bot.Send(msg)
+}

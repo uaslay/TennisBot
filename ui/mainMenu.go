@@ -11,7 +11,7 @@ var (
 		),
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton(ProfileButton),
-			tgbotapi.NewKeyboardButton("📊 Загальний рейтинг"),
+			tgbotapi.NewKeyboardButton(GeneralRatingButton),
 		),
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton("🥇 Турніри"),

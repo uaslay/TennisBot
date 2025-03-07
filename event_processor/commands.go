@@ -31,11 +31,3 @@ func (ev_proc EventProcessor) processCommand(bot *tgbotapi.BotAPI, command strin
 		}
 	}
 }
-
-// Обробляє кнопку "Загальний рейтинг"
-func handleGeneralRating(bot *tgbotapi.BotAPI, chatID int64, userID string) {
-    ratingMessage := ui.GetPlayerRating(userID)
-
-    msg := tgbotapi.NewMessage(chatID, ratingMessage)
-    bot.Send(msg)
-}

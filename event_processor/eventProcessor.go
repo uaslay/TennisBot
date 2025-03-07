@@ -1,6 +1,7 @@
 package eventprocessor
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -75,6 +76,15 @@ func (ev_proc EventProcessor) Process(bot *tgbotapi.BotAPI, update tgbotapi.Upda
 			} else {
 				ev_proc.registrationFlowHandler(bot, update, activeRoutines, dbClient)
 			}
+		case ui.GeneralRatingButton:
+			stopRoutine(playerID, activeRoutines)  // Зупиняємо поточний процес
+			if dbClient.CheckPlayerRegistration(playerID) {
+				rating := ui.GetPlayerRating(fmt.Sprintf("%d", playerID))  // Отримуємо рейтинг гравця
+				msg := tgbotapi.NewMessage(chatID, rating)
+				bot.Send(msg)
+			} else {
+				ev_proc.registrationFlowHandler(bot, update, activeRoutines, dbClient)  // Якщо не зареєстрований – реєстрація
+			}	
 		default:
 			if activeRoutines[playerID] != nil {
 				activeRoutines[playerID] <- update.Message.Text

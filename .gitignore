@@ -17,3 +17,6 @@ resources/avatarPhoto/*
 TennisBot
 bin
 .vs
+
+# players.json містить динамічні дані (рейтинги гравців), які змінюються під час роботи бота.
+players.json
