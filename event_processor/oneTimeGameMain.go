@@ -442,6 +442,27 @@ out:
 						Court:         singleGameChoice.Court,
 						Payment:       singleGameChoice.Payment,
 					})
+
+					players := ui.LoadPlayers()
+					playerA := players[fmt.Sprintf("%d", playerID)]
+					playerB := players[fmt.Sprintf("%d", singleGameChoice.Partner)] // ID суперника
+
+					// Отримуємо унікальний ідентифікатор матчу
+					matchID := fmt.Sprintf("%d_vs_%d", playerA.ID, playerB.ID)
+
+					// Додаємо гру у список активних матчів обох гравців
+					playerA.ActiveMatches = append(playerA.ActiveMatches, matchID)
+					playerB.ActiveMatches = append(playerB.ActiveMatches, matchID)
+
+					// Оновлюємо дані у списку гравців
+					players[fmt.Sprintf("%d", playerA.ID)] = playerA
+					players[fmt.Sprintf("%d", playerB.ID)] = playerB
+
+					// Зберігаємо зміни
+					ui.SavePlayers(players)
+
+
+
 					// TODO: const
 					// FIXME: use send msg function
 					msg := tgbotapi.NewMessage(chatID, "Гра зареєстрована")

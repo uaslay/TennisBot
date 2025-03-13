@@ -3,29 +3,36 @@ package ui
 import (
     "os"
 	"fmt"
+    "log"
 	"math"
+    "strings"
 	"encoding/json"
 )
 
 const (
     GeneralRatingButton = "📊 Загальний рейтинг"
+    FixScoreButton = "✍️ Зафіксувати рахунок"
 )
 
 // Структура для збереження даних гравця
 type Player struct {
-    ID       string `json:"id"`
-    Name     string `json:"name"`
-    Rating   int    `json:"rating"`
-    Wins     int    `json:"wins"`
-    Losses   int    `json:"losses"`
-    Matches  int    `json:"matches"`
+    ID            string   `json:"id"`
+    Username      string   `json:"username"`
+    Name          string   `json:"name"`
+    Rating        int      `json:"rating"`
+    Wins          int      `json:"wins"`
+    Losses        int      `json:"losses"`
+    Matches       int      `json:"matches"`
+    ActiveMatches []string `json:"active_matches"` // Список ID активних матчів
 }
+
+
 
 // Файл, де зберігаються гравці
 const playersFile = "players.json"
 
 // Завантажує гравців із файлу
-func loadPlayers() map[string]Player {
+func LoadPlayers() map[string]Player {
     file, err := os.Open(playersFile)
     if err != nil {
         return make(map[string]Player) // Якщо файлу немає, повертаємо пусту мапу
@@ -41,21 +48,22 @@ func loadPlayers() map[string]Player {
     return players
 }
 
-// Зберігає гравців у файл
-func savePlayers(players map[string]Player) {
+// SavePlayers зберігає оновлені дані гравців у файл
+func SavePlayers(players map[string]Player) {
     file, err := os.Create(playersFile)
     if err != nil {
-        panic(err) // Помилка запису у файл
+        log.Println("Помилка збереження гравців:", err)
+        return
     }
     defer file.Close()
 
     encoder := json.NewEncoder(file)
-    encoder.SetIndent("", "  ") // Красиве форматування JSON
-    err = encoder.Encode(players)
-    if err != nil {
-        panic(err)
+    encoder.SetIndent("", "  ")
+    if err := encoder.Encode(players); err != nil {
+        log.Println("Помилка кодування JSON:", err)
     }
 }
+
 
 // Функція для визначення коефіцієнта K на основі рейтингу та матчів
 func getKFactor(rating int, matches int) int {
@@ -89,35 +97,18 @@ func UpdateElo(ratingA, ratingB, matchesA, matchesB int, resultA float64) (int, 
 }
 
 // Оновлює рейтинг гравців після матчу
-func updatePlayerRating(playerAID, playerBID string, resultA float64) {
-    players := loadPlayers()
-
+func UpdatePlayerRating(playerAID, playerBID string, resultA float64) {
+    players := LoadPlayers()
     // Якщо гравець A не існує – створюємо його
     playerA, existsA := players[playerAID]
     if !existsA {
-        playerA = Player{
-            ID:      playerAID,
-            Name:    "Unknown",
-            Rating:  0,
-            Wins:    0,
-            Losses:  0,
-            Matches: 0,
-        }
+        playerA = Player{ID: playerAID, Username: "", Name: "Unknown", Rating: 0, Wins: 0, Losses: 0, Matches: 0}
     }
-
     // Якщо гравець B не існує – створюємо його
     playerB, existsB := players[playerBID]
     if !existsB {
-        playerB = Player{
-            ID:      playerBID,
-            Name:    "Unknown",
-            Rating:  0,
-            Wins:    0,
-            Losses:  0,
-            Matches: 0,
-        }
+        playerB = Player{ID: playerBID, Username: "", Name: "Unknown", Rating: 0, Wins: 0, Losses: 0, Matches: 0}
     }
-
     // Оновлюємо рейтинги
     newRatingA, newRatingB := UpdateElo(playerA.Rating, playerB.Rating, playerA.Matches, playerB.Matches, resultA)
 
@@ -126,16 +117,25 @@ func updatePlayerRating(playerAID, playerBID string, resultA float64) {
     playerA.Matches++
     playerB.Matches++
 
+    if resultA == 1 {
+        playerA.Wins++
+        playerB.Losses++
+    } else {
+        playerA.Losses++
+        playerB.Wins++
+    }
+
     players[playerAID] = playerA
     players[playerBID] = playerB
 
-    savePlayers(players) // Зберігаємо оновлену базу
+    SavePlayers(players) // Зберігаємо оновлену базу
 }
+
 
 
 // Отримує рейтинг гравця разом із статистикою виграшів/поразок
 func GetPlayerRating(playerID string) string {
-    players := loadPlayers()
+    players := LoadPlayers()
 
     player, exists := players[playerID]
     if !exists {
@@ -149,11 +149,23 @@ func GetPlayerRating(playerID string) string {
             Matches: 0,
         }
         players[playerID] = player
-        savePlayers(players) // Зберігаємо нового гравця
+        SavePlayers(players) // Зберігаємо нового гравця
     }
 
     return fmt.Sprintf("Ваш загальний рейтинг: %d (Виграш %d - %d Програш)", 
         player.Rating, player.Wins, player.Losses)
 }
 
+// Пошук гравця за юзернеймом тг
+func GetPlayerByUsername(username string) (string, bool) {
+    players := LoadPlayers()
+    log.Printf("Шукаю гравця з юзернеймом: %s", username) // Додаємо логування
 
+    for id, player := range players {
+        log.Printf("Перевіряємо: %s (%s)", player.Username, id) // Дивимося, які дані є в players.json
+        if strings.EqualFold(player.Username, username) { // Ігноруємо регістр
+            return id, true
+        }
+    }
+    return "", false // Гравець не знайдений
+}

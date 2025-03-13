@@ -84,7 +84,30 @@ func (ev_proc EventProcessor) Process(bot *tgbotapi.BotAPI, update tgbotapi.Upda
 				bot.Send(msg)
 			} else {
 				ev_proc.registrationFlowHandler(bot, update, activeRoutines, dbClient)  // Якщо не зареєстрований – реєстрація
-			}	
+			}
+		case ui.FixScoreButton:
+			stopRoutine(playerID, activeRoutines) // Зупиняємо інші процеси
+		
+			if dbClient.CheckPlayerRegistration(playerID) {
+				players := ui.LoadPlayers()
+				player := players[fmt.Sprintf("%d", playerID)]
+		
+				// Перевіряємо, чи є у гравця активні матчі
+				if len(player.ActiveMatches) == 0 {
+					bot.Send(tgbotapi.NewMessage(chatID, "У вас немає активних матчів. Будь ласка, узгодьте гру з суперником перед фіксацією результату."))
+					return
+				}
+		
+				// Якщо матчі є, запитуємо суперника
+				msg := tgbotapi.NewMessage(chatID, "З ким ти грав? Введи @юзернейм суперника.")
+				bot.Send(msg)
+				activeRoutines[playerID] = make(chan string, 1) // Чекаємо відповідь користувача
+				go handleFixScore(bot, chatID, playerID, dbClient, activeRoutines[playerID])
+		
+			} else {
+				ev_proc.registrationFlowHandler(bot, update, activeRoutines, dbClient)
+			}
+					
 		default:
 			if activeRoutines[playerID] != nil {
 				activeRoutines[playerID] <- update.Message.Text

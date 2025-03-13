@@ -244,3 +244,109 @@ func handleGeneralRating(bot *tgbotapi.BotAPI, chatID int64, userID string) {
     msg := tgbotapi.NewMessage(chatID, ratingMessage)
     bot.Send(msg)
 }
+
+var activeRoutines = make(map[int64]chan string)
+
+// Обробляє кнопку "Зафіксувати рахунок"
+func handleFixScore(bot *tgbotapi.BotAPI, chatID int64, playerID int64, dbClient *db.DBClient, input chan string) {
+    players := ui.LoadPlayers() 
+	playerIDStr := fmt.Sprintf("%d", playerID) // Конвертуємо playerID у string
+	player, exists := players[playerIDStr] // Отримуємо гравця з `players`
+
+	fmt.Println("DEBUG: PlayerID", playerIDStr, "Active Matches:", player.ActiveMatches)
+
+    if !exists || len(player.ActiveMatches) == 0 {
+		bot.Send(tgbotapi.NewMessage(chatID, "У вас немає активних матчів. Будь ласка, узгодьте гру з суперником перед фіксацією результату."))
+		return
+	}
+	
+	// Запускаємо очікування юзернейма тільки якщо матчі є
+	if activeRoutines[playerID] != nil {
+		close(activeRoutines[playerID]) // Закриваємо старий канал, щоб не створювати нові повторно
+	}
+	activeRoutines[playerID] = make(chan string, 1) 
+
+	bot.Send(tgbotapi.NewMessage(chatID, "З ким ти грав? Введи @юзернейм суперника."))
+
+	opponentUsername := <-activeRoutines[playerID] // Чекаємо введення юзернейма
+	opponentID, found := ui.GetPlayerByUsername(opponentUsername)
+
+	for !found { // Додатковий цикл, щоб дати користувачеві шанс ввести username повторно
+		bot.Send(tgbotapi.NewMessage(chatID, "Гравця з таким юзернеймом не знайдено. Введіть ще раз:"))
+		opponentUsername = <-activeRoutines[playerID] // Чекаємо повторне введення
+		opponentID, found = ui.GetPlayerByUsername(opponentUsername)
+	}
+
+	// Коли правильний юзер знайдений, продовжуємо
+	bot.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf("Суперник знайдений: %s", opponentUsername)))	
+
+    // Створюємо клавіатуру з активними матчами
+    var buttons []tgbotapi.KeyboardButton
+    for _, matchID := range player.ActiveMatches {
+        buttons = append(buttons, tgbotapi.NewKeyboardButton(matchID))
+    }
+
+    keyboard := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(buttons...))
+    if len(player.ActiveMatches) == 0 {
+		bot.Send(tgbotapi.NewMessage(chatID, "У вас немає активних матчів. Будь ласка, узгодьте гру з суперником перед фіксацією результату."))
+		return
+	}
+	msg := tgbotapi.NewMessage(chatID, "Оберіть матч для фіксації рахунку:")
+	msg.ReplyMarkup = keyboard
+	bot.Send(msg)
+
+
+    matchID := <-input // Гравець вибирає матч
+    opponentID = matchID // Тимчасово опонент = matchID (треба замінити на пошук опонента)
+
+    bot.Send(tgbotapi.NewMessage(chatID, "Будь ласка, підтвердьте результат матчу:"))
+
+    // Додаємо кнопки для вибору результату
+    resultKeyboard := tgbotapi.NewReplyKeyboard(
+        tgbotapi.NewKeyboardButtonRow(
+            tgbotapi.NewKeyboardButton("Перемога ✅"),
+            tgbotapi.NewKeyboardButton("Поразка ❌"),
+        ),
+    )
+    resultMsg := tgbotapi.NewMessage(chatID, "Оберіть результат гри:")
+    resultMsg.ReplyMarkup = resultKeyboard
+    bot.Send(resultMsg)
+
+    resultStr := <-input // Чекаємо введення результату
+    var result float64
+    if resultStr == "Перемога ✅" {
+        result = 1
+    } else if resultStr == "Поразка ❌" {
+        result = 0
+    } else {
+        bot.Send(tgbotapi.NewMessage(chatID, "Некоректний вибір. Будь ласка, оберіть 'Перемога ✅' або 'Поразка ❌'."))
+        return
+    }
+
+    // Конвертуємо opponentID у int64 перед використанням у `tgbotapi.NewMessage`
+    opponentChatID, err := strconv.ParseInt(opponentID, 10, 64)
+    if err != nil {
+        bot.Send(tgbotapi.NewMessage(chatID, "Помилка: ID опонента не є числом."))
+        return
+    }
+
+    confirmMsg := tgbotapi.NewMessage(opponentChatID, "Ваш опонент подав результат гри. Ви погоджуєтеся?")
+    confirmKeyboard := tgbotapi.NewReplyKeyboard(
+        tgbotapi.NewKeyboardButtonRow(
+            tgbotapi.NewKeyboardButton("✅ Підтвердити"),
+            tgbotapi.NewKeyboardButton("❌ Відхилити"),
+        ),
+    )
+    confirmMsg.ReplyMarkup = confirmKeyboard
+    bot.Send(confirmMsg)
+
+    confirmation := <-input // Чекаємо відповіді опонента
+
+    if confirmation == "✅ Підтвердити" {
+        ui.UpdatePlayerRating(fmt.Sprintf("%d", playerID), opponentID, result) // ✅ Передаємо `playerID` як string
+        newRating := ui.GetPlayerRating(fmt.Sprintf("%d", playerID))
+        bot.Send(tgbotapi.NewMessage(chatID, "Рахунок успішно зафіксовано!\n"+newRating))
+    } else {
+        bot.Send(tgbotapi.NewMessage(chatID, "Опонент не підтвердив результат. Спробуйте ще раз."))
+    }
+}
