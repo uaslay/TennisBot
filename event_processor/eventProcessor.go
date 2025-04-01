@@ -102,7 +102,7 @@ func (ev_proc EventProcessor) Process(bot *tgbotapi.BotAPI, update tgbotapi.Upda
 				msg := tgbotapi.NewMessage(chatID, "З ким ти грав? Введи @юзернейм суперника.")
 				bot.Send(msg)
 				activeRoutines[playerID] = make(chan string, 1) // Чекаємо відповідь користувача
-				go handleFixScore(bot, chatID, playerID, dbClient, activeRoutines[playerID])
+				go handleFixScore(bot, chatID, playerID, dbClient, activeRoutines)
 		
 			} else {
 				ev_proc.registrationFlowHandler(bot, update, activeRoutines, dbClient)

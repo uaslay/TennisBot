@@ -53,6 +53,7 @@ func SavePlayers(players map[string]Player) {
     file, err := os.Create(playersFile)
     if err != nil {
         log.Println("Помилка збереження гравців:", err)
+        panic(err)
         return
     }
     defer file.Close()
@@ -61,7 +62,9 @@ func SavePlayers(players map[string]Player) {
     encoder.SetIndent("", "  ")
     if err := encoder.Encode(players); err != nil {
         log.Println("Помилка кодування JSON:", err)
+        panic(err)
     }
+    fmt.Printf("DEBUG: Players successfully saved: %+v\n", players)
 }
 
 

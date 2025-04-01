@@ -445,23 +445,23 @@ out:
 
 					players := ui.LoadPlayers()
 					playerA := players[fmt.Sprintf("%d", playerID)]
-					playerB := players[fmt.Sprintf("%d", singleGameChoice.Partner)] // ID суперника
+					playerB := players[fmt.Sprintf("%d", singleGameChoice.Partner)]
 
-					// Отримуємо унікальний ідентифікатор матчу
+					// Створюємо унікальний ідентифікатор матчу
 					matchID := fmt.Sprintf("%d_vs_%d", playerA.ID, playerB.ID)
 
-					// Додаємо гру у список активних матчів обох гравців
+					// Додаємо матч до активних матчів обох гравців
 					playerA.ActiveMatches = append(playerA.ActiveMatches, matchID)
 					playerB.ActiveMatches = append(playerB.ActiveMatches, matchID)
 
-					// Оновлюємо дані у списку гравців
+					// Оновлюємо дані гравців у мапі
 					players[fmt.Sprintf("%d", playerA.ID)] = playerA
 					players[fmt.Sprintf("%d", playerB.ID)] = playerB
 
+					fmt.Printf("DEBUG: Players before save: %+v\n", players)
+					
 					// Зберігаємо зміни
 					ui.SavePlayers(players)
-
-
 
 					// TODO: const
 					// FIXME: use send msg function
