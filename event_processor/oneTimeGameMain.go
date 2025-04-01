@@ -3,9 +3,9 @@ package eventprocessor
 import (
 	"fmt"
 	"log"
+	"time"
 	"strconv"
 	"strings"
-	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
@@ -448,11 +448,13 @@ out:
 					playerB := players[fmt.Sprintf("%d", singleGameChoice.Partner)]
 
 					// Створюємо унікальний ідентифікатор матчу
-					matchID := fmt.Sprintf("%d_vs_%d", playerA.ID, playerB.ID)
+					matchID := fmt.Sprintf("%s_vs_%s", playerA.ID, playerB.ID)
 
 					// Додаємо матч до активних матчів обох гравців
 					playerA.ActiveMatches = append(playerA.ActiveMatches, matchID)
 					playerB.ActiveMatches = append(playerB.ActiveMatches, matchID)
+
+					fmt.Printf("DEBUG: ActiveMatches for players %s: %+v\n", playerA.ID, playerB.ID, playerA.ActiveMatches, playerB.ActiveMatches)
 
 					// Оновлюємо дані гравців у мапі
 					players[fmt.Sprintf("%d", playerA.ID)] = playerA

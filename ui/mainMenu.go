@@ -6,7 +6,7 @@ import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 var (
 	MainKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("✍️ Зафіксувати рахунок"),
+			tgbotapi.NewKeyboardButton(FixScoreButton),
 			tgbotapi.NewKeyboardButton("🎾 Разова гра"),
 		),
 		tgbotapi.NewKeyboardButtonRow(

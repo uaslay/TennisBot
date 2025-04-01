@@ -8,6 +8,7 @@ import (
 	"log"
 	"time"
 	"strconv"
+	"strings"
 	"net/http"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -237,6 +238,44 @@ out:
 // 	// send request to confirm the game score
 // }
 
+// ScoreSubmitButtonHandler обробляє натискання кнопки "Зафіксувати рахунок".
+// Очікується, що дані callback мають формат: "score:playerAID:playerBID:result"
+// де result = "1" якщо перемога гравця A, або "0" якщо поразка.
+func (ev_proc EventProcessor) ScoreSubmitButtonHandler(bot *tgbotapi.BotAPI, update tgbotapi.Update, dbClient *db.DBClient) {
+	if update.CallbackQuery == nil {
+		return
+	}
+	data := update.CallbackQuery.Data
+	chatID := update.CallbackQuery.Message.Chat.ID
+
+	// Розділяємо дані за роздільником ":"
+	parts := strings.Split(data, ":")
+	if len(parts) < 4 {
+		log.Println("Невірний формат даних для фіксації рахунку")
+		return
+	}
+	if parts[0] != "score" {
+		log.Println("Невірний префікс даних, очікується 'score', отримано:", parts[0])
+		return
+	}
+	playerAID := parts[1]
+	playerBID := parts[2]
+	result, err := strconv.ParseFloat(parts[3], 64)
+	if err != nil {
+		log.Println("Помилка перетворення результату:", err)
+		return
+	}
+
+	// Оновлюємо рейтинг гравців використовуючи функцію з ui/elo.go
+	ui.UpdatePlayerRating(playerAID, playerBID, result)
+
+	// Надсилаємо повідомлення з підтвердженням
+	msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Рахунок зафіксовано. Рейтинг оновлено."))
+	if _, err := bot.Send(msg); err != nil {
+		log.Println("Помилка надсилання повідомлення:", err)
+	}
+}
+
 // Обробляє кнопку "Загальний рейтинг"
 func handleGeneralRating(bot *tgbotapi.BotAPI, chatID int64, userID string) {
     ratingMessage := ui.GetPlayerRating(userID)
@@ -248,7 +287,7 @@ func handleGeneralRating(bot *tgbotapi.BotAPI, chatID int64, userID string) {
 var activeRoutines = make(map[int64]chan string)
 
 // Обробляє кнопку "Зафіксувати рахунок"
-func handleFixScore(bot *tgbotapi.BotAPI, chatID int64, playerID int64, dbClient *db.DBClient, activeRoutines map[int64]chan string) {
+func HandleFixScore(bot *tgbotapi.BotAPI, chatID int64, playerID int64, dbClient *db.DBClient, activeRoutines map[int64]chan string) {
 	playerIDStr := fmt.Sprintf("%d", playerID)
 	players := ui.LoadPlayers()
 	player, exists := players[playerIDStr]
@@ -257,6 +296,8 @@ func handleFixScore(bot *tgbotapi.BotAPI, chatID int64, playerID int64, dbClient
 		bot.Send(tgbotapi.NewMessage(chatID, "У вас немає активних матчів. Будь ласка, узгодьте гру з суперником перед фіксацією результату."))
 		return
 	}
+
+	fmt.Printf("DEBUG: ActiveMatches for player %s: %+v\n", playerIDStr, player.ActiveMatches)
 
 	if activeRoutines[playerID] != nil {
 		close(activeRoutines[playerID])

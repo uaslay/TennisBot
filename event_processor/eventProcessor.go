@@ -3,6 +3,7 @@ package eventprocessor
 import (
 	"fmt"
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -33,6 +34,58 @@ type Event struct {
 // NewEventProcessor is a constructor for the EventProcessor struct.
 func NewEventProcessor(bot *tgbotapi.BotAPI) EventProcessor {
 	return EventProcessor{bot: bot}
+}
+
+// isMatchMessage перевіряє, чи містить повідомлення дані матчу.
+func isMatchMessage(message string) bool {
+	// Регулярний вираз для знаходження рахунку (наприклад, 6-3, 4-6)
+	re := regexp.MustCompile(`\d{1,2}[-:]\d{1,2}(,\s*\d{1,2}[-:]\d{1,2})*`)
+	match := re.FindString(message)
+	if match == "" {
+		return false
+	}
+	return true
+}
+
+// parseMatchData витягує імена гравців і рахунок з повідомлення.
+func parseMatchData(message string) (playerA, playerB, score string, err error) {
+	// Приклад простого парсингу: "PlayerA vs PlayerB 6-3, 4-6"
+	parts := strings.Split(message, " ")
+	if len(parts) < 4 {
+		return "", "", "", fmt.Errorf("недостатньо даних у повідомленні")
+	}
+	playerA = parts[0]
+	playerB = parts[2]
+	score = strings.Join(parts[3:], " ")
+	return playerA, playerB, score, nil
+}
+
+// processMatchResult обробляє результат матчу.
+func processMatchResult(playerA, playerB, score string, dbClient *db.DBClient) {
+    // Реалізуйте логіку обробки матчу тут
+    log.Printf("Processing match result: %s vs %s, score: %s", playerA, playerB, score)
+}
+
+
+// ProcessIncomingMessage обробляє вхідне повідомлення.
+func (ev_proc EventProcessor) ProcessIncomingMessage(update tgbotapi.Update, dbClient *db.DBClient) {
+	if update.Message == nil {
+		return
+	}
+	messageText := update.Message.Text
+	log.Printf("Отримано повідомлення: %s", messageText)
+	if isMatchMessage(messageText) {
+		playerA, playerB, score, err := parseMatchData(messageText)
+		if err != nil {
+			log.Println("Помилка парсингу повідомлення:", err)
+			return
+		}
+		log.Printf("Розпізнано матч: %s vs %s, рахунок: %s", playerA, playerB, score)
+		// Викликаємо обробку матчу
+		go processMatchResult(playerA, playerB, score, dbClient)
+	} else {
+		log.Println("Повідомлення не містить даних матчу")
+	}
 }
 
 // TODO: error management
@@ -102,7 +155,7 @@ func (ev_proc EventProcessor) Process(bot *tgbotapi.BotAPI, update tgbotapi.Upda
 				msg := tgbotapi.NewMessage(chatID, "З ким ти грав? Введи @юзернейм суперника.")
 				bot.Send(msg)
 				activeRoutines[playerID] = make(chan string, 1) // Чекаємо відповідь користувача
-				go handleFixScore(bot, chatID, playerID, dbClient, activeRoutines)
+				go HandleFixScore(bot, chatID, playerID, dbClient, activeRoutines)
 		
 			} else {
 				ev_proc.registrationFlowHandler(bot, update, activeRoutines, dbClient)
@@ -132,11 +185,11 @@ func (ev_proc EventProcessor) Process(bot *tgbotapi.BotAPI, update tgbotapi.Upda
 				stopRoutine(playerID, activeRoutines)
 			}
 			ev_proc.DeleteGames(bot, update, activeRoutines, playerID, dbClient)
-		case ui.EnterGameScore:
-			if activeRoutines[playerID] != nil {
-				stopRoutine(playerID, activeRoutines)
-			}
-			ev_proc.EnterGameScore(bot, update, activeRoutines, playerID, dbClient)
+		// case ui.EnterGameScore:
+		// 	if activeRoutines[playerID] != nil {
+		// 		stopRoutine(playerID, activeRoutines)
+		// 	}
+		// 	ev_proc.EnterGameScore(bot, update, activeRoutines, playerID, dbClient)
 		default:
 			input := strings.Split(update.CallbackQuery.Data, ":")
 			switch input[0] {

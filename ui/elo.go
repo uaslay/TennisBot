@@ -4,7 +4,7 @@ import (
     "os"
 	"fmt"
     "log"
-	"math"
+	"math"    
     "strings"
 	"encoding/json"
 )
@@ -69,7 +69,7 @@ func SavePlayers(players map[string]Player) {
 
 
 // Функція для визначення коефіцієнта K на основі рейтингу та матчів
-func getKFactor(rating int, matches int) int {
+func GetKFactor(rating int, matches int) int {
 	if matches < 30 {
 		return 40
 	} else if rating <= 600 {
@@ -90,8 +90,8 @@ func UpdateElo(ratingA, ratingB, matchesA, matchesB int, resultA float64) (int, 
 	E_A := expectedScore(ratingA, ratingB)
 	E_B := expectedScore(ratingB, ratingA)
 
-	K_A := getKFactor(ratingA, matchesA)
-	K_B := getKFactor(ratingB, matchesB)
+	K_A := GetKFactor(ratingA, matchesA)
+	K_B := GetKFactor(ratingB, matchesB)
 
 	newRatingA := ratingA + int(math.Round(float64(K_A) * (resultA - E_A)))
 	newRatingB := ratingB + int(math.Round(float64(K_B) * ((1 - resultA) - E_B)))
