@@ -433,7 +433,8 @@ out:
 			case ui.AllSelected:
 				if inputData == ui.Yes {
 					// TODO: errors
-					dbClient.CreateGame(db.ProposedGame{
+					
+						dbClient.CreateGame(db.ProposedGame{
 						UserID:        playerID,
 						RegionSection: singleGameChoice.Area,
 						Partner:       singleGameChoice.Partner,
@@ -442,26 +443,27 @@ out:
 						Court:         singleGameChoice.Court,
 						Payment:       singleGameChoice.Payment,
 					})
+					
+					fmt.Printf("DEBUG: Значення Partner: '%s'\n", singleGameChoice.Partner)
 
+					// Завантажуємо гравців
 					players := ui.LoadPlayers()
+					// Перетворюємо playerID (int64) в рядок, оскільки ключі мапи – рядки
 					playerA := players[fmt.Sprintf("%d", playerID)]
-					playerB := players[fmt.Sprintf("%d", singleGameChoice.Partner)]
+					playerB := players[singleGameChoice.Partner]
 
-					// Створюємо унікальний ідентифікатор матчу
+					// Створюємо matchID з використанням правильного форматування (%s, якщо ID – рядки)
 					matchID := fmt.Sprintf("%s_vs_%s", playerA.ID, playerB.ID)
+					fmt.Printf("DEBUG: Створено matchID: %s\n", matchID)
 
-					// Додаємо матч до активних матчів обох гравців
+					// Додаємо matchID до списку активних матчів для обох гравців
 					playerA.ActiveMatches = append(playerA.ActiveMatches, matchID)
 					playerB.ActiveMatches = append(playerB.ActiveMatches, matchID)
 
-					fmt.Printf("DEBUG: ActiveMatches for players %s: %+v\n", playerA.ID, playerB.ID, playerA.ActiveMatches, playerB.ActiveMatches)
+					// Оновлюємо мапу гравців
+					players[fmt.Sprintf("%d", playerID)] = playerA
+					players[singleGameChoice.Partner] = playerB
 
-					// Оновлюємо дані гравців у мапі
-					players[fmt.Sprintf("%d", playerA.ID)] = playerA
-					players[fmt.Sprintf("%d", playerB.ID)] = playerB
-
-					fmt.Printf("DEBUG: Players before save: %+v\n", players)
-					
 					// Зберігаємо зміни
 					ui.SavePlayers(players)
 
