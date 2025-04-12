@@ -161,6 +161,9 @@ func GetPlayerRating(playerID string) string {
 
 // Пошук гравця за юзернеймом тг
 func GetPlayerByUsername(username string) (string, bool) {
+    // Видаляємо символ "@" на початку, якщо він є
+    username = strings.TrimPrefix(username, "@")
+    
     players := LoadPlayers()
     log.Printf("Шукаю гравця з юзернеймом: %s", username) // Додаємо логування
 
