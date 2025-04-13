@@ -1,14 +1,12 @@
 package main
 
 import (
+	"os"
 	"log"
 	"net/http"
-	"os"
-	"fmt"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
-	ui "TennisBot/ui"
 	db "TennisBot/database"
 	ev_proc "TennisBot/event_processor"
 
@@ -24,16 +22,6 @@ func general(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-
-	ratingA := 1200
-    ratingB := 400
-    matchesA := 10
-    matchesB := 5
-    resultA := 1.0 // Гравець A виграв
-
-    newA, newB := ui.UpdateElo(ratingA, ratingB, matchesA, matchesB, resultA)
-    fmt.Printf("Новий рейтинг A: %d\n", newA)
-    fmt.Printf("Новий рейтинг B: %d\n", newB)
 
 	log.SetFlags(log.Ldate | log.Lshortfile | log.Ltime)
 	// TODO: develop for monitoring, curl http://localhost:9090/general

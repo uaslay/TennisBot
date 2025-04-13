@@ -1,12 +1,13 @@
 package ui
 
 import (
-    "os"
 	"fmt"
     "log"
-	"math"    
-    "strings"
-	"encoding/json"
+	"math"
+    "errors" // Для повернення помилок
+	"gorm.io/gorm"
+
+    db "TennisBot/database"
 )
 
 const (
@@ -14,164 +15,125 @@ const (
     FixScoreButton = "✍️ Зафіксувати рахунок"
 )
 
-// Структура для збереження даних гравця
-type Player struct {
-    ID            string   `json:"id"`
-    Username      string   `json:"username"`
-    Name          string   `json:"name"`
-    Rating        int      `json:"rating"`
-    Wins          int      `json:"wins"`
-    Losses        int      `json:"losses"`
-    Matches       int      `json:"matches"`
-    ActiveMatches []string `json:"active_matches"` // Список ID активних матчів
-}
-
-
-
-// Файл, де зберігаються гравці
-const playersFile = "players.json"
-
-// Завантажує гравців із файлу
-func LoadPlayers() map[string]Player {
-    file, err := os.Open(playersFile)
-    if err != nil {
-        return make(map[string]Player) // Якщо файлу немає, повертаємо пусту мапу
-    }
-    defer file.Close()
-
-    var players map[string]Player
-    decoder := json.NewDecoder(file)
-    err = decoder.Decode(&players)
-    if err != nil {
-        return make(map[string]Player)
-    }
-    return players
-}
-
-// SavePlayers зберігає оновлені дані гравців у файл
-func SavePlayers(players map[string]Player) {
-    file, err := os.Create(playersFile)
-    if err != nil {
-        log.Println("Помилка збереження гравців:", err)
-        panic(err)
-        return
-    }
-    defer file.Close()
-
-    encoder := json.NewEncoder(file)
-    encoder.SetIndent("", "  ")
-    if err := encoder.Encode(players); err != nil {
-        log.Println("Помилка кодування JSON:", err)
-        panic(err)
-    }
-    fmt.Printf("DEBUG: Players successfully saved: %+v\n", players)
-}
-
-
 // Функція для визначення коефіцієнта K на основі рейтингу та матчів
-func GetKFactor(rating int, matches int) int {
+func GetKFactor(rating float64, matches int64) float64 {
 	if matches < 30 {
-		return 40
-	} else if rating <= 600 {
-		return 25
+		return 40.0
+	} else if rating <= 600 { // Порівняння float64 з int - працює
+		return 25.0
 	} else if rating <= 2400 {
-		return 20
+		return 20.0
 	}
-	return 10
+	return 10.0
 }
 
 // Функція для розрахунку очікуваного результату гравця A
-func expectedScore(ratingA, ratingB int) float64 {
-	return 1 / (1 + math.Pow(10, float64(ratingB-ratingA)/400))
+func expectedScore(ratingA, ratingB float64) float64 {
+	return 1.0 / (1.0 + math.Pow(10.0, (ratingB-ratingA)/400.0))
 }
 
 // Функція для оновлення рейтингу після матчу
-func UpdateElo(ratingA, ratingB, matchesA, matchesB int, resultA float64) (int, int) {
+func UpdateElo(ratingA, ratingB float64, matchesA, matchesB int64, resultA float64) (float64, float64) {
 	E_A := expectedScore(ratingA, ratingB)
-	E_B := expectedScore(ratingB, ratingA)
+	E_B := expectedScore(ratingB, ratingA) // Очікуваний результат для B = 1 - E_A
 
 	K_A := GetKFactor(ratingA, matchesA)
 	K_B := GetKFactor(ratingB, matchesB)
 
-	newRatingA := ratingA + int(math.Round(float64(K_A) * (resultA - E_A)))
-	newRatingB := ratingB + int(math.Round(float64(K_B) * ((1 - resultA) - E_B)))
+	// Розрахунок нових рейтингів
+	newRatingA := ratingA + K_A*(resultA-E_A)
+	// Результат для B = 1 - resultA
+	newRatingB := ratingB + K_B*((1.0-resultA)-E_B)
 
-	return newRatingA, newRatingB
+	// Округлення до найближчого цілого
+	return math.Round(newRatingA), math.Round(newRatingB)
 }
 
-// Оновлює рейтинг гравців після матчу
-func UpdatePlayerRating(playerAID, playerBID string, resultA float64) {
-    players := LoadPlayers()
-    // Якщо гравець A не існує – створюємо його
-    playerA, existsA := players[playerAID]
-    if !existsA {
-        playerA = Player{ID: playerAID, Username: "", Name: "Unknown", Rating: 0, Wins: 0, Losses: 0, Matches: 0}
-    }
-    // Якщо гравець B не існує – створюємо його
-    playerB, existsB := players[playerBID]
-    if !existsB {
-        playerB = Player{ID: playerBID, Username: "", Name: "Unknown", Rating: 0, Wins: 0, Losses: 0, Matches: 0}
-    }
-    // Оновлюємо рейтинги
-    newRatingA, newRatingB := UpdateElo(playerA.Rating, playerB.Rating, playerA.Matches, playerB.Matches, resultA)
+// UpdatePlayerRating оновлює рейтинг гравців після матчу, використовуючи базу даних
+func UpdatePlayerRating(playerAID, playerBID int64, resultA float64, dbClient *db.DBClient) error {
+	// 1. Отримати обох гравців з БД
+	playerA, errA := dbClient.GetPlayer(playerAID)
+	if errA != nil {
+		log.Printf("Помилка отримання гравця A (ID: %d): %v", playerAID, errA)
+		return fmt.Errorf("не вдалося отримати гравця A (ID: %d): %w", playerAID, errA)
+	}
 
-    playerA.Rating = newRatingA
-    playerB.Rating = newRatingB
-    playerA.Matches++
-    playerB.Matches++
+	playerB, errB := dbClient.GetPlayer(playerBID)
+	if errB != nil {
+		log.Printf("Помилка отримання гравця B (ID: %d): %v", playerBID, errB)
+		return fmt.Errorf("не вдалося отримати гравця B (ID: %d): %w", playerBID, errB)
+	}
 
-    if resultA == 1 {
-        playerA.Wins++
-        playerB.Losses++
-    } else {
-        playerA.Losses++
-        playerB.Wins++
-    }
+	// 2. Розрахувати нові рейтинги
+	newRatingA, newRatingB := UpdateElo(playerA.Rating, playerB.Rating, playerA.TotalMatches, playerB.TotalMatches, resultA)
 
-    players[playerAID] = playerA
-    players[playerBID] = playerB
+	// 3. Оновити статистику для обох гравців
+	playerA.Rating = newRatingA // Оновлюємо рейтинг
+	playerB.Rating = newRatingB
+	playerA.TotalMatches++      // Збільшуємо кількість матчів
+	playerB.TotalMatches++
 
-    SavePlayers(players) // Зберігаємо оновлену базу
+	if resultA == 1.0 { // Гравець A виграв
+		playerA.Won++
+		playerB.Lost++
+	} else if resultA == 0.0 { // Гравець A програв (B виграв)
+		playerA.Lost++
+		playerB.Won++
+	} else {
+		// Можна обробити нічию (resultA == 0.5), якщо потрібно
+		// У тенісі зазвичай нічиїх немає, але для інших ігор може бути актуально
+		log.Printf("Нейтральний результат (%.1f) не змінює статистику перемог/програшів.", resultA)
+	}
+
+	// 4. Зберегти оновлені дані в БД
+	errUpdateA := dbClient.UpdatePlayerStats(playerA) // Використовуємо нову функцію
+	if errUpdateA != nil {
+		log.Printf("Помилка оновлення статистики гравця A (ID: %d): %v", playerAID, errUpdateA)
+		// Важливо: Що робити, якщо один гравець оновився, а інший ні? Потрібна транзакція!
+		// Поки що просто повертаємо помилку.
+		return fmt.Errorf("не вдалося оновити статистику гравця A: %w", errUpdateA)
+	}
+
+	errUpdateB := dbClient.UpdatePlayerStats(playerB)
+	if errUpdateB != nil {
+		log.Printf("Помилка оновлення статистики гравця B (ID: %d): %v", playerBID, errUpdateB)
+		// Помилка другого оновлення, потенційна неузгодженість
+		return fmt.Errorf("не вдалося оновити статистику гравця B: %w", errUpdateB)
+	}
+
+	log.Printf("Рейтинг оновлено: Гравець %d -> %.2f, Гравець %d -> %.2f", playerAID, newRatingA, playerBID, newRatingB)
+	return nil // Успіх
 }
 
 
+// GetPlayerRating отримує рейтинг гравця з бази даних
+func GetPlayerRating(playerID int64, dbClient *db.DBClient) string {
+	player, err := dbClient.GetPlayer(playerID)
+	if err != nil {
+		// Гравець не знайдений або інша помилка БД
+		log.Printf("Помилка отримання рейтингу для гравця ID %d: %v", playerID, err)
+		// Можливо, варто повернути повідомлення про необхідність реєстрації
+		return "Не вдалося отримати ваш рейтинг. Можливо, ви ще не зареєстровані? /start"
+	}
 
-// Отримує рейтинг гравця разом із статистикою виграшів/поразок
-func GetPlayerRating(playerID string) string {
-    players := LoadPlayers()
-
-    player, exists := players[playerID]
-    if !exists {
-        // Якщо гравця немає – створюємо його з рейтингом 0
-        player = Player{
-            ID:      playerID,
-            Name:    "Unknown",
-            Rating:  0,  // Початковий рейтинг = 0
-            Wins:    0,
-            Losses:  0,
-            Matches: 0,
-        }
-        players[playerID] = player
-        SavePlayers(players) // Зберігаємо нового гравця
-    }
-
-    return fmt.Sprintf("Ваш загальний рейтинг: %d (Виграш %d - %d Програш)", 
-        player.Rating, player.Wins, player.Losses)
+	// Форматуємо рядок з даними гравця
+	return fmt.Sprintf("Ваш загальний рейтинг: %.0f (Виграш %d - %d Програш, Матчів: %d)",
+		player.Rating, // Використовуємо %.0f для відображення як ціле
+		player.Won,
+		player.Lost,
+		player.TotalMatches)
 }
 
-// Пошук гравця за юзернеймом тг
-func GetPlayerByUsername(username string) (string, bool) {
-    // Видаляємо символ "@" на початку, якщо він є
-    username = strings.TrimPrefix(username, "@")
-    
-    players := LoadPlayers()
-    log.Printf("Шукаю гравця з юзернеймом: %s", username) // Додаємо логування
-
-    for id, player := range players {
-        log.Printf("Перевіряємо: %s (%s)", player.Username, id) // Дивимося, які дані є в players.json
-        if strings.EqualFold(player.Username, username) { // Ігноруємо регістр
-            return id, true
-        }
-    }
-    return "", false // Гравець не знайдений
+// GetPlayerByUsername шукає гравця за юзернеймом у базі даних
+func GetPlayerByUsername(username string, dbClient *db.DBClient) (int64, bool) {
+	player, err := dbClient.GetPlayerByUsername(username)
+	if err != nil {
+		// Помилка (включаючи не знайдено)
+		if !errors.Is(err, gorm.ErrRecordNotFound) { // Логуємо тільки "справжні" помилки БД
+			log.Printf("Помилка пошуку гравця за UserName '%s': %v", username, err)
+		}
+		return 0, false // Гравець не знайдений або помилка
+	}
+	// Гравець знайдений
+	return player.UserID, true
 }

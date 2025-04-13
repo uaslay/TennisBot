@@ -13,22 +13,23 @@ import (
 
 // Player is a struct that represents a player in the database
 type Player struct {
-	UserID                          int64
+	UserID                          int64 `gorm:"primaryKey"`
 	NameSurname                     string
 	YearOfBirth                     int
 	YearStartedPlaying              int
 	YearsOfPlayingWithoutInterrupts int
-	PlayedGames                     int64
+	TotalMatches                     int64
 	ChampionshipsParticipation      bool
 	City                            string
 	Area                            string
-	Rating                          int16
+	Rating                          float64 
 	Racket                          string
-	Won                             int32
-	Lost                            int32
-	AvatarPhotoPath                 string
+	Won                             int64 
+	Lost                            int64 
+	// AvatarPhotoPath                 string
+	AvatarFileID                    string
 	MobileNumber                    string
-	UserName                        string
+	UserName                        string `gorm:"uniqueIndex"`
 	FavouriteCourt                  string
 	MainHand                        string
 	gorm.Model
@@ -49,13 +50,13 @@ type ProposedGame struct {
 // String returns a string representation of a player
 func (p Player) String() string {
 	return fmt.Sprintf(
-		"%s\n%s : %s\nРейтинг: %d\nРакетка: %s\nЗіграв матчів: %d, з яких:\nВиграв: %d\nПрограв: %d\nУлюблене покриття: %s\nІгрова рука: %s\nТелефон: %s\nUserName: %s",
+		"%s\n%s : %s\nРейтинг: %.0f\nРакетка: %s\nЗіграв матчів: %d, з яких:\nВиграв: %d\nПрограв: %d\nУлюблене покриття: %s\nІгрова рука: %s\nТелефон: %s\nUserName: %s",
 		p.NameSurname,
 		p.City,
 		p.Area,
 		p.Rating,
 		p.Racket,
-		p.PlayedGames,
+		p.TotalMatches,
 		p.Won,
 		p.Lost,
 		p.FavouriteCourt,
