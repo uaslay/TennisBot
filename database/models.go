@@ -3,6 +3,7 @@ package database
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -13,38 +14,50 @@ import (
 
 // Player is a struct that represents a player in the database
 type Player struct {
-	UserID                          int64 `gorm:"primaryKey"`
+	UserID                          int64 `gorm:"uniqueIndex"`
 	NameSurname                     string
 	YearOfBirth                     int
 	YearStartedPlaying              int
 	YearsOfPlayingWithoutInterrupts int
-	TotalMatches                     int64
+	TotalMatches                    int64
 	ChampionshipsParticipation      bool
 	City                            string
 	Area                            string
-	Rating                          float64 
+	Rating                          float64
 	Racket                          string
-	Won                             int64 
-	Lost                            int64 
-	// AvatarPhotoPath                 string
+	Won                             int64
+	Lost                            int64
 	AvatarFileID                    string
 	MobileNumber                    string
 	UserName                        string `gorm:"uniqueIndex"`
 	FavouriteCourt                  string
 	MainHand                        string
+	ProposedGames                   []ProposedGame `gorm:"foreignKey:PlayerID"`      // Зв'язок один-до-багатьох
+	GameResponses                   []GameResponse `gorm:"foreignKey:ResponderID"` // Зв'язок один-до-багатьох
 	gorm.Model
 }
 
 // ProposedGame is a struct that represents a proposed game in the database
 type ProposedGame struct {
-	UserID        int64
+	PlayerID      uint
 	RegionSection string
 	Partner       string
 	Date          string
 	Time          string
 	Court         string
 	Payment       string
+	Player        Player         `gorm:"foreignKey:PlayerID"`         // Зв'язок багато-до-одного
+	GameResponses []GameResponse `gorm:"foreignKey:ProposedGameID"` // Зв'язок один-до-багатьох
 	gorm.Model
+}
+
+// GameResponse is a struct that represents a response to a proposed game
+type GameResponse struct {
+	ProposedGameID uint        
+	ResponderID    uint        
+	ProposedGame   ProposedGame `gorm:"foreignKey:ProposedGameID"` // Зв'язок багато-до-одного
+	Responder      Player       `gorm:"foreignKey:ResponderID"`    // Зв'язок багато-до-одного
+	gorm.Model                  // Includes ID, CreatedAt, UpdatedAt, DeletedAt
 }
 
 // String returns a string representation of a player
@@ -68,38 +81,50 @@ func (p Player) String() string {
 
 // ConvertDayToUkr converts a day to Ukrainian
 func ConvertDayToUkr(day int) string {
-	if day == 1 {
+	wd := time.Weekday(day) // Конвертуємо int в time.Weekday
+	switch wd {
+	case time.Monday:
 		return "Пн"
-	} else if day == 2 {
+	case time.Tuesday:
 		return "Вт"
-	} else if day == 3 {
+	case time.Wednesday:
 		return "Ср"
-	} else if day == 4 {
+	case time.Thursday:
 		return "Чт"
-	} else if day == 5 {
+	case time.Friday:
 		return "Пт"
-	} else if day == 6 {
+	case time.Saturday:
 		return "Сб"
-	} else {
+	case time.Sunday:
 		return "Нд"
+	default:
+		return ""
 	}
 }
 
 // String returns a string representation of a proposed game
 func (g ProposedGame) String() string {
-	unixTimestamp, _ := strconv.ParseInt(g.Date, 10, 64)
-	unixTime := time.Unix(unixTimestamp, 0)
-	date := ConvertDayToUkr(int(unixTime.Weekday())) + " " + strconv.Itoa(unixTime.Day())
+	unixTimestamp, err := strconv.ParseInt(g.Date, 10, 64)
+	dateStr := g.Date // Fallback
+	if err == nil {
+		unixTime := time.Unix(unixTimestamp, 0)
+		dateStr = ConvertDayToUkr(int(unixTime.Weekday())) + " " + strconv.Itoa(unixTime.Day())
+	} else {
+		log.Printf("Error parsing ProposedGame.Date ('%s') as Unix timestamp for game ID %d: %v", g.Date, g.ID, err)
+	}
 
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "%s, ", date)
+	fmt.Fprintf(&b, "%s, ", dateStr)
 	fmt.Fprintf(&b, "%s, ", g.Time)
 	fmt.Fprintf(&b, "%s, ", g.Partner)
 	fmt.Fprintf(&b, "%s", g.Payment)
 
-	if g.RegionSection != "" {
+	if g.RegionSection != "" && g.RegionSection != "Не вказано" { // Додано перевірку на "Не вказано"
 		fmt.Fprintf(&b, ", %s", g.RegionSection)
+	}
+	if g.Court != "" && g.Court != "Неважливо" { // Додано вивід корту, якщо вказано
+		fmt.Fprintf(&b, ", Корт: %s", g.Court)
 	}
 
 	return b.String()

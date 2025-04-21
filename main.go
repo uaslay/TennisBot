@@ -1,15 +1,14 @@
 package main
 
 import (
-	"os"
 	"log"
 	"net/http"
+	"os"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	db "TennisBot/database"
 	ev_proc "TennisBot/event_processor"
-
 )
 
 var dbClient db.DBClient
@@ -35,7 +34,7 @@ func main() {
 	/* ---------- bot initialization ---------- */
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("TOKEN"))
 	if err != nil {
-		log.Panic(err)
+		log.Fatalf("Failed to initialize bot: %v", err)
 	}
 
 	eventProcessor := ev_proc.NewEventProcessor(bot)

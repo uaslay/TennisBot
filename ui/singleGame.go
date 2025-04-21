@@ -25,21 +25,27 @@ const (
 	ProposeGame = "Запропонувати гру"
 )
 
-// Define constants for different sections of the single game process
+// === ВИПРАВЛЕНО: Розділено рядкову константу та iota ===
+// Callback для кнопки "Мої ігри" (має бути поза iota блоком)
+const MyProposedGamesCallback = "my_proposed_games"
+
+// Define constants for different sections of the single game process using iota
 const (
-	SingleGameMenu SingleGameSteps = iota
-	ProcessSingleGameMenu
-	ProposeGameMenu
-	GameWasChosen
-	EditProposeGameMenu
-	DateChoice
-	ProcessDateChoice
-	TimeChoice
-	ProcessTimeChoice
-	AllSelected
-	SelectCourt
-	Selected
+	SingleGameMenu        SingleGameSteps = iota // == 0
+	ProcessSingleGameMenu                        // == 1
+	ProposeGameMenu                              // == 2
+	GameWasChosen                                // == 3 (Пропущений раніше через збій iota)
+	EditProposeGameMenu                          // == 4
+	DateChoice                                   // == 5
+	ProcessDateChoice                            // == 6
+	TimeChoice                                   // == 7
+	ProcessTimeChoice                            // == 8
+	AllSelected                                  // == 9
+	SelectCourt                                  // == 10
+	Selected                                     // == 11
 )
+
+// =======================================================
 
 // Define constants for different sections of the single game process
 const (

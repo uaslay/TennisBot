@@ -9,18 +9,18 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func stopRoutine(playerID int64, activeRoutines map[int64](chan string)) {
-	if activeRoutines[playerID] != nil {
-		/* stop goroutine */
-		activeRoutines[playerID] <- ui.QuitChannelCommand
+// func stopRoutine(playerID int64, activeRoutines map[int64](chan string)) {
+// 	if activeRoutines[playerID] != nil {
+// 		/* stop goroutine */
+// 		activeRoutines[playerID] <- ui.QuitChannelCommand
 
-		/* close correspondent channel */
-		close(activeRoutines[playerID])
+// 		/* close correspondent channel */
+// 		close(activeRoutines[playerID])
 
-		/* erase allocated structures for channels */
-		delete(activeRoutines, playerID)
-	}
-}
+// 		/* erase allocated structures for channels */
+// 		delete(activeRoutines, playerID)
+// 	}
+// }
 
 // ConvertDayToUkr is a function that converts the day of the week to Ukrainian.
 func ConvertDayToUkr(day int) string {

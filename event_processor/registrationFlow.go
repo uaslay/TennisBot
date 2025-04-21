@@ -1,11 +1,7 @@
 package eventprocessor
 
 import (
-	"fmt"
-	"io"
 	"log"
-	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -28,8 +24,10 @@ func (ev_proc EventProcessor) registrationFlowHandler(bot *tgbotapi.BotAPI, upda
 	msg := tgbotapi.NewMessage(chatID, ui.ProfileRegistrationStart)
 	_, err = ev_proc.bot.Send(msg)
 	if err != nil {
-		// log error
-		panic(err)
+		log.Printf("Помилка під час реєстрації (стан %v) для користувача %d: %v", state, player.UserID, err)
+		ev_proc.bot.Send(tgbotapi.NewMessage(chatID, "Сталася помилка під час реєстрації. Спробуйте почати знову: /start"))
+		delete(activeRoutines, player.UserID)
+		return
 	}
 
 	activeRoutines[player.UserID] = make(chan string, 1)
@@ -46,16 +44,21 @@ out:
 			msg := tgbotapi.NewMessage(chatID, "Час очікування реєстраціЇ сплив. Тицніть на будь-який пункт меню.")
 			_, err := ev_proc.bot.Send(msg)
 			if err != nil {
-				log.Panic(err)
+				log.Printf("Помилка під час реєстрації (стан %v) для користувача %d: %v", state, player.UserID, err)
+				ev_proc.bot.Send(tgbotapi.NewMessage(chatID, "Сталася помилка під час реєстрації. Спробуйте почати знову: /start"))
+				delete(activeRoutines, player.UserID)
+				break out
 			}
 			delete(activeRoutines, player.UserID)
 			break out
-		case inputData := <-activeRoutines[player.UserID]:
-			if inputData == "" {
-				continue
+		case inputData, ok := <-activeRoutines[player.UserID]: // Додаємо 'ok' для перевірки закриття
+			if !ok { // Перевірка на закриття каналу
+				log.Printf("RegistrationFlowHandler: Канал для %d закрито.", player.UserID)
+				break out
 			}
-
-			if inputData == ui.QuitChannelCommand {
+			// ... (timer reset) ...
+			if inputData == ui.QuitChannelCommand { // Перевірка команди виходу
+				log.Printf("RegistrationFlowHandler: Команда виходу для %d.", player.UserID)
 				break out
 			}
 
@@ -63,7 +66,10 @@ out:
 			case ui.NameSurname:
 				_, err := ev_proc.bot.Send(tgbotapi.NewMessage(chatID, ui.ProfileMsgNameSurname))
 				if err != nil {
-					log.Panic(err)
+					log.Printf("Помилка під час реєстрації (стан %v) для користувача %d: %v", state, player.UserID, err)
+					ev_proc.bot.Send(tgbotapi.NewMessage(chatID, "Сталася помилка під час реєстрації. Спробуйте почати знову: /start"))
+					delete(activeRoutines, player.UserID)
+					break out
 				}
 				state = ui.MobileNumber
 			case ui.MobileNumber:
@@ -77,7 +83,10 @@ out:
 				response, err := bot.Send(msg)
 				messageID = response.MessageID
 				if err != nil {
-					log.Panic(err)
+					log.Printf("Помилка під час реєстрації (стан %v) для користувача %d: %v", state, player.UserID, err)
+					ev_proc.bot.Send(tgbotapi.NewMessage(chatID, "Сталася помилка під час реєстрації. Спробуйте почати знову: /start"))
+					delete(activeRoutines, player.UserID)
+					break out
 				}
 
 				player.NameSurname = inputData
@@ -95,7 +104,10 @@ out:
 					response, err := bot.Send(msg)
 					messageID = response.MessageID
 					if err != nil {
-						log.Panic(err)
+						log.Printf("Помилка під час реєстрації (стан %v) для користувача %d: %v", state, player.UserID, err)
+						ev_proc.bot.Send(tgbotapi.NewMessage(chatID, "Сталася помилка під час реєстрації. Спробуйте почати знову: /start"))
+						delete(activeRoutines, player.UserID)
+						break out
 					}
 
 					state = ui.Area
@@ -108,7 +120,10 @@ out:
 				msgDelete := tgbotapi.NewDeleteMessage(chatID, messageID)
 				_, err := ev_proc.bot.Request(msgDelete)
 				if err != nil {
-					log.Panic(err)
+					log.Printf("Помилка під час реєстрації (стан %v) для користувача %d: %v", state, player.UserID, err)
+					ev_proc.bot.Send(tgbotapi.NewMessage(chatID, "Сталася помилка під час реєстрації. Спробуйте почати знову: /start"))
+					delete(activeRoutines, player.UserID)
+					break out
 				}
 
 				msg := tgbotapi.NewMessage(chatID, ui.ProfileMsgArea)
@@ -156,52 +171,65 @@ out:
 				msg.ReplyMarkup = ui.FavourityCourtMaterial
 				ev_proc.bot.Send(msg)
 				state = ui.MainHand
-			case ui.MainHand:
-				fmt.Println(inputData)
-				player.FavouriteCourt = inputData
+			case ui.MainHand: // Попередня відповідь (про покриття) оброблена, бот запитав про руку
+				player.FavouriteCourt = inputData // Зберігаємо відповідь про покриття з попереднього кроку
+
+				// Надсилаємо питання про ігрову руку
 				msg := tgbotapi.NewMessage(chatID, ui.ProfileMainHand)
 				msg.ReplyMarkup = ui.MainGameHand
-				ev_proc.bot.Send(msg)
-				state = ui.RegistrationFinished
-			case ui.RegistrationFinished:
-				player.MainHand = inputData
-
-				ev_proc.bot.Send(tgbotapi.NewMessage(chatID, ui.ProfileMsgSuccessfulRegistration))
-				player.AvatarPhotoPath = fmt.Sprintf("%s%s", PhotoFolderPath, strconv.FormatInt(player.UserID, 10))
-				stopRoutine(player.UserID, activeRoutines)
-
-				dbClient.CreatePlayer(player)
-
-				userProfilePhotos, err := bot.GetUserProfilePhotos(tgbotapi.UserProfilePhotosConfig{UserID: player.UserID})
+				_, err = ev_proc.bot.Send(msg) // Виправляємо змінну помилки
 				if err != nil {
-					panic(err)
+					log.Printf("Помилка надсилання питання про руку: %v", err)
+					// Обробка помилки, можливо break out
+					break out
 				}
-				if userProfilePhotos.TotalCount != 0 {
-					url, _ := bot.GetFileDirectURL(userProfilePhotos.Photos[0][len(userProfilePhotos.Photos[0])-1].FileID)
+				state = ui.RegistrationFinished // Переходимо в фінальний стан (АЛЕ відповідь прийде сюди)
 
-					resp, err := http.Get(url)
-					if err != nil {
-						panic(err)
-					}
-					defer resp.Body.Close()
+			case ui.RegistrationFinished: // Сюди приходить відповідь "Права" або "Ліва"
+				player.MainHand = inputData // Зберігаємо відповідь про руку
 
-					_ = os.Mkdir(PhotoFolderPath, os.ModePerm)
+				// --- Одразу виконуємо фінальні дії ---
+				finalMsg := tgbotapi.NewMessage(chatID, ui.ProfileMsgSuccessfulRegistration)
+				finalMsg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true) // Прибираємо клавіатуру
+				ev_proc.bot.Send(finalMsg)
 
-					out, err := os.Create(player.AvatarPhotoPath)
-					if err != nil {
-						panic(err)
-
-					}
-					defer out.Close()
-
-					_, err = io.Copy(out, resp.Body)
-					if err != nil {
-						panic(err)
-					}
+				// Зберігаємо гравця в БД
+				errDb := dbClient.CreatePlayer(player)
+				if errDb != nil {
+					log.Printf("Помилка реєстрації гравця %d: %v", player.UserID, errDb)
+					ev_proc.bot.Send(tgbotapi.NewMessage(chatID, "Помилка під час реєстрації. Спробуйте пізніше."))
+					break out
+				} else {
+					log.Printf("Гравець %d успішно зареєстрований", player.UserID)
 				}
-				delete(activeRoutines, player.UserID)
-				break out
+
+				// Автоматичне отримання та збереження FileID фото профілю ТГ
+				log.Printf("Спроба отримати фото профілю ТГ для %d", player.UserID)
+				userProfilePhotos, errPhotos := bot.GetUserProfilePhotos(tgbotapi.UserProfilePhotosConfig{UserID: player.UserID})
+				if errPhotos != nil {
+					log.Printf("Помилка отримання фото профілю ТГ для %d: %v", player.UserID, errPhotos)
+				} else if userProfilePhotos.TotalCount > 0 && len(userProfilePhotos.Photos) > 0 && len(userProfilePhotos.Photos[0]) > 0 {
+					fileID := userProfilePhotos.Photos[0][len(userProfilePhotos.Photos[0])-1].FileID
+					log.Printf("Отримано FileID фото профілю ТГ для %d: %s. Оновлюємо БД.", player.UserID, fileID)
+					errUpdate := dbClient.UpdatePlayer(player.UserID, map[string]interface{}{"AvatarFileID": fileID})
+					if errUpdate != nil {
+						log.Printf("Помилка оновлення AvatarFileID для %d під час реєстрації: %v", player.UserID, errUpdate)
+					} else {
+						log.Printf("AvatarFileID для гравця %d автоматично оновлено в БД.", player.UserID)
+					}
+				} else {
+					log.Printf("У користувача %d немає фото профілю ТГ або їх не вдалося отримати.", player.UserID)
+				}
+
+				// Показуємо головне меню
+				ev_proc.mainMenu(chatID)
+				break out // Завершуємо рутину реєстрації
 			}
 		}
+	}
+	// Якщо рутина завершилася через таймер або помилку, переконуємося, що вона видалена з мапи
+	if _, exists := activeRoutines[player.UserID]; exists {
+		delete(activeRoutines, player.UserID)
+		log.Printf("RegistrationFlowHandler: Рутина для %d видалена після завершення циклу.", player.UserID)
 	}
 }

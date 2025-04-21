@@ -1,18 +1,18 @@
 package ui
 
 import (
+	"errors" // Для повернення помилок
 	"fmt"
-    "log"
-	"math"
-    "errors" // Для повернення помилок
 	"gorm.io/gorm"
+	"log"
+	"math"
 
-    db "TennisBot/database"
+	db "TennisBot/database"
 )
 
 const (
-    GeneralRatingButton = "📊 Загальний рейтинг"
-    FixScoreButton = "✍️ Зафіксувати рахунок"
+	GeneralRatingButton = "📊 Загальний рейтинг"
+	FixScoreButton      = "✍️ Зафіксувати рахунок"
 )
 
 // Функція для визначення коефіцієнта K на основі рейтингу та матчів
@@ -70,7 +70,7 @@ func UpdatePlayerRating(playerAID, playerBID int64, resultA float64, dbClient *d
 	// 3. Оновити статистику для обох гравців
 	playerA.Rating = newRatingA // Оновлюємо рейтинг
 	playerB.Rating = newRatingB
-	playerA.TotalMatches++      // Збільшуємо кількість матчів
+	playerA.TotalMatches++ // Збільшуємо кількість матчів
 	playerB.TotalMatches++
 
 	if resultA == 1.0 { // Гравець A виграв
@@ -104,7 +104,6 @@ func UpdatePlayerRating(playerAID, playerBID int64, resultA float64, dbClient *d
 	log.Printf("Рейтинг оновлено: Гравець %d -> %.2f, Гравець %d -> %.2f", playerAID, newRatingA, playerBID, newRatingB)
 	return nil // Успіх
 }
-
 
 // GetPlayerRating отримує рейтинг гравця з бази даних
 func GetPlayerRating(playerID int64, dbClient *db.DBClient) string {

@@ -10,6 +10,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
+
 // OneTimeGameChoice is a struct that represents a single game choice
 type OneTimeGameChoice struct {
 	Area    string
@@ -19,6 +20,7 @@ type OneTimeGameChoice struct {
 	Payment string
 	Court   string
 }
+
 // DefaultOneTimeGameChoice returns a default OneTimeGameChoice
 func DefaultOneTimeGameChoice() OneTimeGameChoice {
 	return OneTimeGameChoice{
@@ -30,6 +32,7 @@ func DefaultOneTimeGameChoice() OneTimeGameChoice {
 		Court:   ui.CourtDoNotCare,
 	}
 }
+
 // Serialize returns a string representation of a OneTimeGameChoice
 func (s OneTimeGameChoice) Serialize() string {
 	unixTimestamp, _ := strconv.ParseInt(s.Date, 10, 64)
@@ -59,7 +62,8 @@ func processGameChoice(choice string,
 	area, err := strconv.Atoi(areaStatus[1])
 
 	if err != nil {
-		log.Panic(err)
+		return tgbotapi.InlineKeyboardMarkup{}
+		fmt.Errorf("помилка конвертації статусу зони '%s': %w", areaStatus[1], err)
 	}
 
 	rowCol := strings.Split(callback[1], "_")

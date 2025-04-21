@@ -72,7 +72,7 @@ const (
 
 // List input options
 var (
-	DefaultAvatarPhotoPath = "/resources/defaultAvatar.jpg"
+	DefaultAvatarFileID = "/resources/defaultAvatar.jpg"
 
 	Championships = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(

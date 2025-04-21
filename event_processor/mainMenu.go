@@ -14,6 +14,6 @@ func (ev_proc EventProcessor) mainMenu(chatID int64) {
 	msg := tgbotapi.NewMessage(chatID, "ОпціЇ головного меню:")
 	msg.ReplyMarkup = ui.MainKeyboard
 	if _, err := ev_proc.bot.Send(msg); err != nil {
-		log.Panic(err)
+		log.Printf("Помилка надсилання головного меню користувачу %d: %v", chatID, err)
 	}
 }
